@@ -1,7 +1,5 @@
 attrs==23.2.0
-joblib==1.4.2
 jsonlines==4.0.0
-nb_tokenizer==0.1.0
 psycopg2-binary==2.9.9
 PyYAML==6.0.1
 tqdm==4.66.4
