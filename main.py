@@ -48,14 +48,6 @@ class Args:
     dhlab_id_status: _DHlabIdStatus
     database: _DatabaseArgs
 
-
-@dataclass
-class _TokenParseResult:
-    token: str
-    sequence_number: int
-    paragraph_number: int
-
-
 def _args() -> Args:
     parser = ArgumentParser()
     parser.add_argument(
@@ -118,36 +110,6 @@ def _connect_to_database(
     database_cursor.close()
     connection.close()
 
-def _create_local_db(dbname):
-    if os.path.exists(dbname):
-        print("ERROR: Database already exists. Delete and re-run.")
-        sys.exit(1)
-    with sqlite3.connect(dbname) as dbcon:
-        cur = dbcon.cursor()
-        cur.execute("CREATE TABLE urns (urn INTEGER PRIMARY KEY, urntext text);")
-        cur.execute("CREATE TABLE ft (urn int, word varchar, seq int, para int, page int, ordinal int);")
-        cur.execute("CREATE TABLE metadata (dhlabid int, hash text, title text, domain text, responsible_editor bool, place text, county text, record_id text, warcpath text, timestamp text, uri text);")
-
-def _write_to_local_database(dbname, token_tuples, metadata_tuple):
-    with sqlite3.connect(dbname) as dbcon:
-        cur = dbcon.cursor()
-        cur.execute("INSERT INTO metadata VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", (metadata_tuple))
-        dbcon.commit()
-        cur.execute("INSERT INTO urns VALUES (?, ?);", (metadata_tuple[0], f"{metadata_tuple[8]}#{metadata_tuple[7]}"))
-        dbcon.commit()
-        cur.executemany("INSERT INTO ft(urn, word, seq, para) VALUES(?, ?, ?, ?);", (token_tuples))
-        dbcon.commit()
-
-def _rename_db(dbname, output_dir):
-    # first we get the min and max_id
-    with sqlite3.connect(dbname) as dbcon:
-        cur = dbcon.cursor()
-        cur.execute("SELECT min(urn) as urn_min, max(urn) as urn_max FROM urns;")
-        min_max = cur.fetchone()
-
-    new_dbname = f"{output_dir}/alto_{min_max[0]}_{min_max[1]}.db"
-    os.rename(dbname, new_dbname)
-
 def _remove_duplicates_and_empty_strings(results: list[tuple[str, ...]]) -> list[str]:
     filtered_results = []
     for entry in results:
@@ -192,25 +154,6 @@ def _fetch_fulltext_hash_and_metadata(
                 )
                 filtered_results.append(res)
     return filtered_results
-
-
-def _parse_tokens(fulltext: str) -> list[_TokenParseResult]:
-    result = []
-    paragraphs = fulltext.split("\n")
-    sequence_number = 0
-    for paragraph_number, paragraph in enumerate(paragraphs):
-        tokens = tokenize(paragraph)
-        for token in tokens:
-            result.append(
-                _TokenParseResult(
-                    token=token,
-                    sequence_number=sequence_number,
-                    paragraph_number=paragraph_number,
-                )
-            )
-            sequence_number += 1
-
-    return result
 
 
 def _main() -> None:
@@ -288,22 +231,10 @@ def _main() -> None:
                             with jsonlines.open(args.output_dir / f"{items[domain_key]}.yaml", "a") as writer:
                                 writer.write(fulltext_dict)
 
-                            # tokenize and output to sqlite3
-                            token_result_collection = _parse_tokens(full_text)
-
-                            token_tuples = []
-
-                            for token_result in token_result_collection:
-                                token_tuples.append((fulltext_dict["dhlabid"], token_result.token, token_result.sequence_number, token_result.paragraph_number))
-
-                            _write_to_local_database(dbname, token_tuples, metadata_tuple)
-
                             dhlabid_value += 1
                 except Exception as e:
                     print(items[domain_key], "failed with", e)
                     continue
-
-    _rename_db(dbname, args.output_dir)
 
 if __name__ == "__main__":
     _main()
