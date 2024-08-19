@@ -37,6 +37,8 @@ To run the built container, run:
 docker run --interactive --tty --rm corpus-build
 # Inside the container run:
 source /virtual_environment/bin/activate
+
+# dump data to JSONL
 python main.py \
     --filter-yaml-file=responsible-editor-filter.yaml \
     --hostname=<host-or-ip-of-database-server> \
