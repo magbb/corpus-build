@@ -46,13 +46,13 @@ def _create_local_db(dbname):
         cur = dbcon.cursor()
         cur.execute("CREATE TABLE urns (urn INTEGER PRIMARY KEY, urntext text);")
         cur.execute("CREATE TABLE ft (urn int, word varchar, seq int, para int, page int, ordinal int);")
-        cur.execute("CREATE TABLE metadata (dhlabid int, hash text, title text, domain text, responsible_editor bool, place text, county text, record_id text, warcpath text, timestamp text, uri text);")
+        cur.execute("CREATE TABLE metadata (dhlabid int, hash text, title text, domain text, responsible_editor bool, place text, county text, record_id text, warcpath text, timestamp text, uri text, langs text);")
         dbcon.commit()
 
 def _write_to_local_database(dbname, token_tuples, metadata_tuple):
     with sqlite3.connect(dbname) as dbcon:
         cur = dbcon.cursor()
-        cur.execute("INSERT INTO metadata VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", (metadata_tuple))
+        cur.execute("INSERT INTO metadata VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);", (metadata_tuple))
         dbcon.commit()
         cur.execute("INSERT INTO urns VALUES (?, ?);", (metadata_tuple[0], f"{metadata_tuple[8]}#{metadata_tuple[7]}"))
         dbcon.commit()
@@ -101,7 +101,7 @@ def _main() -> None:
     _create_local_db(dbname)
 
     for x in _read_jsonl(args.input_file):
-        metadata_fields = ["dhlabid", "hash", "title", "domain", "have-responsible-editor", "place", "county", "record_id", "warcpath", "timestamp", "uri"]
+        metadata_fields = ["dhlabid", "hash", "title", "domain", "have-responsible-editor", "place", "county", "record_id", "warcpath", "timestamp", "uri", "langs"]
         metadata_tuple = tuple(x[field] for field in metadata_fields)
         tokens = _parse_tokens(x["full_text"])
         token_tuples = []
